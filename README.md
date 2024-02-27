@@ -1,9 +1,9 @@
-# Adapt Before Comparision - A New Perspective on Cross-Domain Few-Shot Segmentation
+# Adapt Before Comparision: A New Perspective on Cross-Domain Few-Shot Segmentation
 
-Code for the Reproducing the Paper
+[[`Paper`](https://example.com)]
 
 ## Preparing Data
-Because we follow PATNet and RtD, please refer to their work for prepration of the following datasets:
+Because we follow the evaluation procedure of PATNet and Remember the Difference (RtD), please refer to their work for prepration of the following datasets:
 - Deepglobe (PAT)
 - ISIC (PAT)
 - Chest X-Ray (Lung) (PAT)
@@ -26,9 +26,18 @@ Call
 for example
 `python main.py --benchmark deepglobe --datapath ./datasets/deepglobe/ --nshot 1`
 
-Available `benchmark` strings: deepglobe,isic,lung,fss,suim
-Easiest to prepare should be Lung or FSS.
+Available `benchmark` strings: `deepglobe`,`isic`,`lung`,`fss`,`suim`. Easiest to prepare should be `lung` or `fss`.
 
 Default is quick-infer mode.
 To change this, set `config.featext.fit_every_episode = True` in the main file.
 You can change all other parameters likewise, check the available parameters in runner.makeConfig.
+
+## Await it
+
+You can experiment with this code. Before opening issues, I suggest awaiting nicer demonstrations and documentation to be added. 
+
+## Citing
+If you use ABCDFSS in your research, please use the following BibTeX entry.
+
+```
+
