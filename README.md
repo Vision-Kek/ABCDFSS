@@ -36,13 +36,13 @@ You can change all other parameters likewise, check the available parameters in 
 
 You can experiment with this code. Before opening issues, I suggest awaiting nicer demonstrations and documentation to be added. 
 
-## Citing
+## Cite it
 If you use ABCDFSS in your research, please use the following BibTeX entry.
 ```
 @article{herzog2024cdfss,
       title={Adapt Before Comparison: A New Perspective on Cross-Domain Few-Shot Segmentation}, 
       author={Jonas Herzog},
-      journal={arXiv:2304.02643},
+      journal={arXiv:2402.17614},
       year={2024}
 }
 ```
