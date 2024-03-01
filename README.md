@@ -1,6 +1,6 @@
 # Adapt Before Comparision: A New Perspective on Cross-Domain Few-Shot Segmentation
 
-[[`Paper`](https://arxiv.org/abs/2402.17614)]
+[[`Paper`](https://arxiv.org/abs/2402.17614)] accepted for CVPR'24.
 
 ## Preparing Data
 Because we follow the evaluation procedure of PATNet and Remember the Difference (RtD), please refer to their work for prepration of the following datasets:
