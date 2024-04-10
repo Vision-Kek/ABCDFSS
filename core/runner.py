@@ -10,7 +10,7 @@ import torch
 
 class args:
     backbone = 'resnet50'
-    logpath = '/kaggle/working/logs'
+    logpath = './logs'
     nworker = 0
     bsz = 1
     benchmark='' #e.g. deepglobe,isic,etc.

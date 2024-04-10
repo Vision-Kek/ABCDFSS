@@ -1,49 +1,46 @@
-# Adapt Before Comparision: A New Perspective on Cross-Domain Few-Shot Segmentation
+# Adapt Before Comparision for Cross-Domain Few-Shot Segmentation (ABCDFSS)
 
 [[`Paper`](https://arxiv.org/abs/2402.17614)] accepted for CVPR'24.
 
-## Preparing Data
-Because we follow the evaluation procedure of PATNet and Remember the Difference (RtD), please refer to their work for prepration of the following datasets:
-- Deepglobe (PAT)
-- ISIC (PAT)
-- Chest X-Ray (Lung) (PAT)
-- FSS-1000 (PAT)
-- SUIM (RtD)
 
-You do not need to get all datasets. Just prepare the one you want to test our method with.
+**Two options:**
+1. **Predict an image**
+2. **Predict a dataset**
 
-## Python package prerequisites
-1. torch
-2. torchvision
-3. cv2
-4. numpy
-5. for others, follow the console output
+## Predict an image
 
-## Run it
+1. Prepare your files for the task: `Task = {query image, support image, binary support mask}`.
+2. Upload in the [`DEMO`](https://huggingface.co/spaces/heyoujue/ABCDFSS) OR `git clone` the [`huggingface repo`](https://huggingface.co/spaces/heyoujue/ABCDFSS) to either (a) call `from_model(Task) -> prediction` or (b) run the gradio app locally to let it use your GPU.
+
+## Predict a dataset
+Prepare the dataset: `data/README.md`.
+
 Call
 `python main.py --benchmark {} --datapath {} --nshot {}`
 
 for example
 `python main.py --benchmark deepglobe --datapath ./datasets/deepglobe/ --nshot 1`
 
-Available `benchmark` strings: `deepglobe`,`isic`,`lung`,`fss`,`suim`. Easiest to prepare should be `lung` or `fss`.
+Available `benchmark` strings: `deepglobe`,`isic`,`lung`,`fss`,`suim`.
 
 Default is quick-infer mode.
 To change this, set `config.featext.fit_every_episode=True` in the main file.
-You can change all other parameters likewise, check the available parameters in `core/runner->makeConfig()`.
+You can change all other parameters likewise, check the available parameters in `core/runner.py makeConfig()`.
+Consult `eval/README.md` for notes on reproducing results.
 
-## Await it
+## Limitations
+This work might give you inspiration to try some adaption before comparison for CD-FSS. You might be interested in my opinion that
+1. It is quite possible that there is a better specific adaption algorithm that you can find in your research.
+2. It is also reasonable to replace the part after the comparison with a learned network, this work only demonstrated that even without such, one can get better results than previous works.
+3. Lastly, for the latest best performance, you might want to refer to the other concurrent CD-FSS works.
 
-You can experiment with this code. Before opening issues, I suggest awaiting nicer demonstrations and documentation to be added. 
-
-## Cite it
-If you use ABCDFSS in your research, please use the following BibTeX entry.
+## Citation
+If this work finds use in your research, please cite:
 ```
 @article{herzog2024cdfss,
       title={Adapt Before Comparison: A New Perspective on Cross-Domain Few-Shot Segmentation}, 
       author={Jonas Herzog},
-      journal={arXiv:2402.17614},
+      journal={arXiv preprint arXiv:2402.17614},
       year={2024}
 }
 ```
-
