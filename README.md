@@ -4,29 +4,31 @@
 
 
 **Two options:**
-1. **Predict an image**
-2. **Predict a dataset**
+1. **Predict an individual task**
+2. **Predict tasks sampled from a dataset**
 
-## Predict an image
+`task = {query image, support image(s), binary support mask(s)}`
 
-1. Prepare your files for the task: `Task = {query image, support image, binary support mask}`.
-2. Upload in the [`DEMO`](https://huggingface.co/spaces/heyoujue/ABCDFSS) OR `git clone` the [`huggingface repo`](https://huggingface.co/spaces/heyoujue/ABCDFSS) to either (a) call `from_model(Task) -> prediction` or (b) run the gradio app locally to let it use your GPU.
+## Predict an individual task
 
-## Predict a dataset
-Prepare the dataset: `data/README.md`.
+1. Prepare your files for the task.
+2. Upload in the [`DEMO`](https://huggingface.co/spaces/heyoujue/ABCDFSS) OR `git clone` the [`huggingface repo`](https://huggingface.co/spaces/heyoujue/ABCDFSS) to either (a) call `from_model(task)` in `app.py` or (b) run the gradio app locally to let it use your GPU.
 
-Call
-`python main.py --benchmark {} --datapath {} --nshot {}`
+## Predict tasks sampled from a dataset
+1. Prepare the dataset: [data/README.md](data/README.md).
 
-for example
-`python main.py --benchmark deepglobe --datapath ./datasets/deepglobe/ --nshot 1`
+2. Call
+`python main.py --benchmark {} --datapath {} --nshot {}`,<br>
+    for example
+    `python main.py --benchmark deepglobe --datapath ./datasets/deepglobe/ --nshot 1`<br>
+    Available `benchmark` strings: `deepglobe`,`isic`,`lung`,`fss`,`suim`.
 
-Available `benchmark` strings: `deepglobe`,`isic`,`lung`,`fss`,`suim`.
-
-Default is quick-infer mode.
-To change this, set `config.featext.fit_every_episode=True` in the main file.
-You can change all other parameters likewise, check the available parameters in `core/runner.py makeConfig()`.
-Consult `eval/README.md` for notes on reproducing results.
+Default is quick-infer mode.<br>
+To change this, pass `--adapt-to every-episode`.<br>
+To turn on post-processing, pass `--postprocessing [always|dynamic]`.<br>
+To change other parameters, check the available parameters in [core/runner.py](core/runner.py) `makeConfig()`.<br>
+Select `--verbosity 1` to get printed what's currently happening while runnning the loop.<br>
+Consult [eval/README.md](eval/README.md) for notes on reproducing results.
 
 ## Limitations
 This work might give you inspiration to try some adaption before comparison for CD-FSS. You might be interested in my opinion that

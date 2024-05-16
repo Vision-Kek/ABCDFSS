@@ -3,26 +3,32 @@
 
 In general, I followed the evaluation procedure from [1][2], using 5 datasets
 - [1] Lei et al.`benchmark={Deepglobe, ISIC, Chest-XRay, FSS-1000}`
-- [2] .. et al.: `SUIM`
+- [2] Wang et al.: `SUIM`
 
-**But**, it is still cumbersome to make the data ready to be loaded with the dataloader, so I provide my readily usable datasets:
+**But**, it is still cumbersome to make the data ready to be loaded with the dataloader, so I provide my readily usable datasets, which you can download and put into a `datasets` directory:
 
 ## [ISIC](https://www.kaggle.com/datasets/heyoujue/isic2018-classwise)
+pass `datapath=./datasets/isic2018-classwise`
 
 ## [Chest-Xray (aka Lung)](https://www.kaggle.com/datasets/heyoujue/lungsegmentation)
+pass `datapath=./datasets/lungsegmentation`
 
 ## [FSS-1000](https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/fss1000-a-1000-class-fewshot-segmentation)
+pass `datapath=./datasets/fss1000-a-1000-class-fewshot-segmentation`
 
 ## [Deepglobe](https://www.kaggle.com/datasets/heyoujue/deepglobe)
+pass `datapath=./datasets/deepglobe`
+
 Lei et al. suggested to preprocess the orginial Deepglobe dataset. They have uploaded their processed dataset only in 2023.
 I have run the preprocessing before that.
 The preprocessing code they provided needed to be fixed before it was runnable, [here](https://www.kaggle.com/code/heyoujue/preprocessing-inputs-for-patnet/notebook) is my fixed procedure.
 You don't need to run it though, you can use its [output](https://www.kaggle.com/datasets/heyoujue/deepglobe).
 
 ## [SUIM](https://www.kaggle.com/datasets/heyoujue/suim-merged)
+pass `datapath=./datasets//kaggle/input/suim-merged/suim_merged`
 
 SUIM comes usually with a train and test split, but because all data serves as test for CD-FSS, the entire dataset needs to be considered.
-If you only predict the images in the TEST folder of the original SUIM, you will get better results because these images seem to be easier, don't be fooled by it.
+If you only predict the images in the TEST folder of the original SUIM, you will get better results because these images seem to be easier, don't be fooled by it. On the other hand, 3859 episodes can take a bit long, I sampled 1650 only.
 
 ## Your own dataset
 You can integrate your own dataset by copying and adjusting the procedure from the other datasets in the data/ directory

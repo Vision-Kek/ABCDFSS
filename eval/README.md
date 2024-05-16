@@ -1,12 +1,14 @@
 # Reproduce
 
 ## How to do in one step
-Using the code, you need to
 
-1. set `fit_every_episode = True` to simulate the scenario that each episode is adapted independently from scratch
-2. append `self.pred_mask = self.apply_crf()` in the last line of the `SingleSampleEval.forward` function before the`return` statement, to run post-processing
 
-Note that both steps will make the process dramatically slower, ~x50 for 1. Postprocessing in 2. is running only on CPU currently and thus slow. Moreover, the dynamic decision mentioned in the paper is not covered here, so that it will actually worsen predictions for Chest-Xray for instance. I am working on it to provide you a faster and more convenient way to reproduce the paper algorithms. In the meantime, I show you how I did it with some more code fragments than this repo
+Handle quick-infer mode: ❌`OFF`:   `--adapt-to every-episode` ✅`ON`: `--adapt-to first-episode`
+
+Handle no-pp mode: ❌`OFF`:   `--postprocessing dynamic` ✅`ON`: `--postprocessing off`
+
+For the terms quick-infer and no-pp, please refer to the paper. For the main table both are off.
+Note that turning them off will make the process dramatically slower, ~x50 for 1. Postprocessing in 2. is running only on CPU currently and thus slow. I am working on implementing the algorithms more efficiently and will update the repo then. You can get faster results with choosing postprocessing to be done `always` instad of `dynamic`, but that will worsen some predictions, for Chest-Xray for instance. If you prefer, you can also run it in two steps, to save time and resources, since only Part 1 makes use of GPU currently:
 
 ## How I did it
 
@@ -29,13 +31,13 @@ Then, to refine:
 
 With this, we would have also the post-processed results.
 
-However, the postprocessing can make the results worse in some cases and we can predict whether this will happen by pseudo-predicting the support image (described in supplementary). Admittedly, it makes things a little less clear. Anyway, here's how it looks like:
+However, applying postprocessing `always` can make the results worse in some cases and we can predict whether this will happen by pseudo-predicting the support image (described in supplementary). With this, Part 2 changes to:
 
-**Part 2** - with dynamic refinement decision
+**Part 2** - with `dynamic` refinement decision
 1. Load episodes from Part 1.1
 2. For each episode, load parameters from Part 1.2
 3. For each episode, load coarse predictions from Part 1.3
 4. For each episode, forward-pass pseudo-episode to make the yes/no decision whether to refine.
 5. For each episode, if yes, run postprocessing(=refinement), if not, use coarse prediction from 1.3. Save.
 
-I understand you want a way to reproduce the results more quickly, which I am working on for you.
+Please contact me if you want to access the notebooks.

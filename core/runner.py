@@ -4,28 +4,75 @@ from eval.logger import Logger, AverageMeter
 from eval.evaluation import Evaluator
 from utils import commonutils as utils
 import utils.segutils as segutils
+import utils.crfhelper as crfutils
 import core.contrastivehead as ctrutils
 import core.denseaffinity as dautils
 import torch
 
-class args:
-    backbone = 'resnet50'
-    logpath = './logs'
-    nworker = 0
-    bsz = 1
-    benchmark='' #e.g. deepglobe,isic,etc.
-    datapath='' #path to the selected dataset
-    fold = 0
-    nshot = 1
+def set_args(_args):
+    global args
+    # _args should write benchmark, datapath, nshot, adapt-to, postprocessing, logpath, verbosity
+    args = _args
 
+    # then some more args are appended
+    args.backbone = 'resnet50'
+    args.nworker = 0
+    args.bsz = 1 # the method works on a single task, hence bsz=1
+    args.fold = 0
+
+
+def makeDataloader():
+    FSSDataset.initialize(img_size=400, datapath=args.datapath)
+    dataloader = FSSDataset.build_dataloader(args.benchmark, args.bsz, args.nworker, args.fold, 'test', args.nshot)
+    return dataloader
+
+
+def makeConfig():
+    config = ctrutils.ContrastiveConfig()
+    config.fitting.protoloss = False
+    config.fitting.o_t_contr_proto_loss = True
+    config.fitting.selfattentionloss = False
+    config.fitting.keepvarloss = True
+    config.fitting.symmetricloss = False
+    config.fitting.q_nceloss = True
+    config.fitting.s_nceloss = True
+    config.fitting.num_epochs = 25
+    config.fitting.lr = 1e-2
+    config.fitting.debug = args.verbosity > 2
+    config.model.out_channels = 64
+    config.model.debug = args.verbosity > 0
+    config.featext.fit_every_episode = False
+    config.aug.blurkernelsize = [1]
+    config.aug.n_transformed_imgs = 2
+    config.aug.maxjitter = 0.0
+    config.aug.maxangle = 0
+    config.aug.maxscale = 1
+    config.aug.maxshear = 20
+    config.aug.apply_affine = True
+    config.aug.debug = args.verbosity > 2
+    return config
+
+
+def makeFeatureMaker(dataset, config, device='cpu', randseed=2, feat_extr_method=None):
+    utils.fix_randseed(randseed)
+    if feat_extr_method is None:
+        feat_extr_method = Backbone(args.backbone).to(device).extract_feats
+    feat_maker = ctrutils.FeatureMaker(feat_extr_method, dataset.class_ids, config)
+    utils.fix_randseed(randseed)
+    feat_maker.norm_bb_feats = False
+    return feat_maker
+
+
+# Motivation of this class: Handle every task individually -> create an object for each task, example: see main.py
 class SingleSampleEval:
-    def __init__(self, batch, feat_maker, debug=False):
+    def __init__(self, batch, feat_maker):
         self.damat_comp = dautils.DAMatComparison()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.batch = batch
         self.feat_maker = feat_maker
-        self.debug = debug
         self.thresh_method = 'pred_mean'
+        self.post_proc_method = 'off'
+        self.verbosity = args.verbosity
 
     def taskAdapt(self, detach=True):
         b = self.batch
@@ -46,12 +93,21 @@ class SingleSampleEval:
             print("error, calculate logit mask first (do forward pass)")
         if method is None:
             method = self.thresh_method
-        self.thresh = calcthresh(self.logit_mask, self.s_mask, method)
+        self.thresh = segutils.calcthresh(self.logit_mask, self.s_mask, method)
         self.pred_mask = (self.logit_mask > self.thresh).float()
         return self.thresh, self.pred_mask
 
-    def apply_crf(self):
-        return apply_crf(self.q_img, self.logit_mask, thresh_fn(self.thresh_method))
+    def postprocess(self):
+        if self.post_proc_method == 'off':
+            apply = False
+        elif self.post_proc_method == 'always':
+            apply = True
+        elif self.post_proc_method == 'dynamic':
+            apply = crfutils.crf_is_good(self)
+        else:
+            apply = False
+            print(f'Unknown postproc method: {self.post_proc_method=}')
+        return crfutils.apply_crf(self.q_img, self.logit_mask, segutils.thresh_fn(self.thresh_method)).to(self.device) if apply else self.pred_mask
 
     # this method calls above components sequentially
     def forward(self):
@@ -60,6 +116,8 @@ class SingleSampleEval:
         self.logit_mask = self.compare_feats()
 
         self.thresh, self.pred_mask = self.threshold()
+
+        self.pred_mask = self.postprocess()
 
         return self.logit_mask, self.pred_mask
 
@@ -78,88 +136,23 @@ class SingleSampleEval:
         print('s_mask.mean, pred_mask.mean, thresh:', self.s_mask.mean().item(), self.logit_mask.mean().item(),
               self.thresh.item())
 
+
 class AverageMeterWrapper:
     def __init__(self, dataloader, device='cpu', initlogger=True):
         if initlogger: Logger.initialize(args, training=False)
         self.average_meter = AverageMeter(dataloader.dataset, device)
-        self.device=device
+        self.device = device
         self.dataloader = dataloader
         self.write_batch_idx = 50
+
     def update(self, sseval):
-        self.average_meter.update(sseval.area_inter, sseval.area_union, torch.tensor(sseval.class_id).to(self.device), loss=None)
+        self.average_meter.update(sseval.area_inter, sseval.area_union, torch.tensor(sseval.class_id).to(self.device),
+                                  loss=None)
+
     def update_manual(self, area_inter, area_union, class_id):
         if isinstance(class_id, int): class_id = torch.tensor(class_id).to(self.device)
         self.average_meter.update(area_inter, area_union, class_id, loss=None)
+
     def write(self, i):
         self.average_meter.write_process(i, len(self.dataloader), 0, self.write_batch_idx)
 
-def makeDataloader():
-
-    FSSDataset.initialize(img_size=400, datapath=args.datapath)
-    dataloader = FSSDataset.build_dataloader(args.benchmark, args.bsz, args.nworker, args.fold, 'test', args.nshot)
-    return dataloader
-
-
-def makeConfig():
-    config = ctrutils.ContrastiveConfig()
-    config.fitting.protoloss = False
-    config.fitting.o_t_contr_proto_loss = True
-    config.fitting.selfattentionloss = False
-    config.fitting.keepvarloss = True
-    config.fitting.symmetricloss = False
-    config.fitting.q_nceloss = True
-    config.fitting.s_nceloss = True
-    config.fitting.num_epochs = 25
-    config.fitting.lr = 1e-2
-    config.fitting.debug = False
-    config.model.out_channels = 64
-    config.featext.fit_every_episode = False
-    config.aug.blurkernelsize = [1]
-    config.aug.n_transformed_imgs = 2
-    config.aug.maxjitter = 0.0
-    config.aug.maxangle = 0
-    config.aug.maxscale = 1
-    config.aug.maxshear = 20
-    config.aug.apply_affine = True
-    config.aug.debug = False
-    return config
-
-
-def makeFeatureMaker(dataset, config, device='cpu', randseed=2, feat_extr_method=None):
-    utils.fix_randseed(randseed)
-    if feat_extr_method is None:
-        feat_extr_method = Backbone(args.backbone).to(device).extract_feats
-    feat_maker = ctrutils.FeatureMaker(feat_extr_method, dataset.class_ids, config)
-    utils.fix_randseed(randseed)
-    feat_maker.norm_bb_feats = False
-    return feat_maker
-def apply_crf(rgb_img, fg_pred, thresh_fn,iterations=5): #5 on deployment, 1 on support-aug test for speedup
-    crf = segutils.CRF(gaussian_stdxy=(1,1), gaussian_compat=2,
-                 bilateral_stdxy=(35,35), bilateral_compat=1, stdrgb=(13,13,13))
-    q = crf.iterrefine(iterations, rgb_img, fg_pred, thresh_fn)
-    return q.argmax(1)
-
-def calcthresh(fused_pred, s_masks, method='otsus'):
-    if method=='iterotsus':
-        thresh = segutils.iterative_otsus(fused_pred,s_masks,maxiters=5)[0]
-        return thresh
-    elif method=='1iterotsus':
-        thresh = segutils.iterative_otsus(fused_pred,s_masks,maxiters=1)[0]
-        return thresh
-    elif method=='otsus':
-        thresh = segutils.otsus(fused_pred)[0]
-        return thresh
-    # elif method=='via_triclass':
-    #     thresh = segutils.otsus(fused_pred, mode='via_triclass')[0]
-    elif method=='pred_mean':
-        otsu_thresh = segutils.otsus(fused_pred)[0]
-        thresh = torch.max(otsu_thresh, fused_pred.mean())
-    # elif method=='3kmeans':
-    #     k3 = segutils.KMeans(fused_pred.float().view(1,-1), k=3)
-    #     thresh = k3.compute_thresholds()[0][-1]
-    return thresh
-
-def thresh_fn(method):
-    def inner(fused_pred, s_masks=None):
-        return calcthresh(fused_pred, s_masks, method)
-    return inner

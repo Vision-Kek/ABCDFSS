@@ -217,7 +217,7 @@ class ContrastiveFeatureTransformer(nn.Module):
 
         self.prepend_relu = config_model.prepend_relu
         self.append_normalize = config_model.append_normalize
-        self.debug = config_model.debug
+        #self.debug = config_model.debug
 
     def forward(self, x):
         if self.prepend_relu:
@@ -411,7 +411,7 @@ class Augmen:
 
 
 class CTrBuilder:
-    # call init 1st, pass all config parameters (initatiate a ContrastiveConfig class in your code)
+    # call init 1st, pass all config parameters (init a ContrastiveConfig object in your code)
     def __init__(self, config, augmentator=None):
         if augmentator is None:
             augmentator = Augmen(config.aug)
@@ -540,6 +540,7 @@ class FeatureMaker:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.featextractor = feat_extraction_method
         self.c_trs = {ctr: CTrBuilder(config) for ctr in class_ids}
+        self.config = config
         self.norm_bb_feats = False
 
     def extract_bb_feats(self, img):
@@ -547,7 +548,7 @@ class FeatureMaker:
             return self.featextractor(img)
 
     def create_and_fit(self, c_tr, q_img, s_img, s_mask, q_feat, s_feat):
-        print('doing contrastive')
+        if self.config.model.debug: print('contrastive adaption')
         c_tr.makeAugmented(q_img, s_img, s_mask)
 
         bsz, k, c, h, w = s_img.shape

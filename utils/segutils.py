@@ -32,15 +32,14 @@ def fg_bg_proto(sfeat_volume, downsampled_smask):
     return fg_proto, bg_proto
 
 
-# intersection = lambda pred, target: (pred * target).float().sum()
-# union = lambda pred, target: (pred + target).clamp(0, 1).float().sum()
-#
-#
-# def iou(pred, target):  # binary only, input bsz,h,w
-#     i, u = intersection(pred, target), union(pred, target)
-#     iou = (i + 1e-8) / (u + 1e-8)
-#     return iou.item()
-#
+intersection = lambda pred, target: (pred * target).float().sum()
+union = lambda pred, target: (pred + target).clamp(0, 1).float().sum()
+
+def iou(pred, target):  # binary only, input bsz,h,w
+    i, u = intersection(pred, target), union(pred, target)
+    iou = (i + 1e-8) / (u + 1e-8)
+    return iou.item()
+
 #
 # class SimpleAvgMeter:
 #     def __init__(self, n_classes, device=torch.device('cuda')):
@@ -226,6 +225,28 @@ def iterative_otsus(probab_mask, s_mask, maxiters=5, mode='ordinary',
         it += 1
 
 
+def calcthresh(fused_pred, s_masks, method='otsus'):
+    #     if method=='iterotsus':
+    #         thresh = iterative_otsus(fused_pred,s_masks,maxiters=5)[0]
+    #         return thresh
+    #     elif method=='1iterotsus':
+    #         thresh = iterative_otsus(fused_pred,s_masks,maxiters=1)[0]
+    #         return thresh
+    if method == 'otsus':
+        thresh = otsus(fused_pred)[0]
+        return thresh
+    elif method == 'pred_mean':
+        otsu_thresh = otsus(fused_pred)[0]
+        thresh = torch.max(otsu_thresh, fused_pred.mean())
+    return thresh
+
+
+def thresh_fn(method):
+    def inner(fused_pred, s_masks=None):
+        return calcthresh(fused_pred, s_masks, method)
+
+    return inner
+
 # def upgrade_scipy():
 #     os.system('!pip install - -upgrade scipy')
 #
@@ -363,13 +384,6 @@ class CRF:
 
         return torch.from_numpy(np.stack(refined_masks, axis=0))
 
-    #     def iterrefine(self, iters, image_tensor, fg_probs, soft_thresh=None, T=1):
-    #         q1 = fg_probs
-    #         for iter in range(iters):
-    #             print(q1.shape)
-    #             q1 = self.refine(image_tensor, q1, soft_thresh=None, T=1)[:,1]
-    #         return q1
-
     def iterrefine(self, iters, q_img, fg_probs, thresh_fn, debug=False):
         pred = fg_probs.unsqueeze(1).expand(1, 2, *fg_probs.shape[-2:])
         for it in range(iters):
@@ -381,7 +395,6 @@ class CRF:
 
             pred = self.refine(q_img, pred[:, 1], soft_thresh=thresh)
         return pred
-
 
 #
 # class Subplot:
@@ -551,34 +564,34 @@ class CRF:
 #
 #     return overlayed_image
 #
-#
-# import pandas as pd
 
-# to_pil = lambda t: transforms.ToPILImage()(t) if t.shape[-1] > 4 else transforms.ToPILImage()(t.permute(2, 0, 1))
-#
-#
-# def pilImageRow(*imgs, maxwidth=800, bordercolor=0x000000):
-#     imgs = [to_pil(im.float()) for im in imgs]
-#     dst = Image.new('RGB', (sum(im.width for im in imgs), imgs[0].height))
-#     for i, im in enumerate(imgs):
-#         loc = [x0, y0, x1, y1] = [i * im.width, 0, (i + 1) * im.width, im.height]
-#         dst.paste(im, (x0, y0))
-#         ImageDraw.Draw(dst).rectangle(loc, width=2, outline=bordercolor)
-#     factorToBig = dst.width / maxwidth
-#     dst = dst.resize((int(dst.width / factorToBig), int(dst.height / factorToBig)))
-#     return dst
-#
-#
-# def tensor_table(**kwargs):
-#     tensor_overview = {}
-#     for name, tensor in kwargs.items():
-#         if callable(tensor):
-#             print(name, [tensor(t) for _, t in kwargs.items() if isinstance(t, torch.Tensor)])
-#         else:
-#             tensor_overview[name] = {
-#                 'min': tensor.min().item(),
-#                 'max': tensor.max().item(),
-#                 'shape': tensor.shape,
-#             }
-#     return pd.DataFrame.from_dict(tensor_overview, orient='index')
+import pandas as pd
+
+to_pil = lambda t: transforms.ToPILImage()(t) if t.shape[-1] > 4 else transforms.ToPILImage()(t.permute(2, 0, 1))
+
+
+def pilImageRow(*imgs, maxwidth=800, bordercolor=0x000000):
+    imgs = [to_pil(im.float()) for im in imgs]
+    dst = Image.new('RGB', (sum(im.width for im in imgs), imgs[0].height))
+    for i, im in enumerate(imgs):
+        loc = [x0, y0, x1, y1] = [i * im.width, 0, (i + 1) * im.width, im.height]
+        dst.paste(im, (x0, y0))
+        ImageDraw.Draw(dst).rectangle(loc, width=2, outline=bordercolor)
+    factorToBig = dst.width / maxwidth
+    dst = dst.resize((int(dst.width / factorToBig), int(dst.height / factorToBig)))
+    return dst
+
+
+def tensor_table(**kwargs):
+    tensor_overview = {}
+    for name, tensor in kwargs.items():
+        if callable(tensor):
+            print(name, [tensor(t) for _, t in kwargs.items() if isinstance(t, torch.Tensor)])
+        else:
+            tensor_overview[name] = {
+                'min': tensor.min().item(),
+                'max': tensor.max().item(),
+                'shape': tensor.shape,
+            }
+    return pd.DataFrame.from_dict(tensor_overview, orient='index')
 
